@@ -92,7 +92,7 @@ export const analyzeItemWithGemini = async (
 
   try {
     const response: GenerateContentResponse = await ai.models.generateContent({
-      model: "gemini-3-pro-preview",
+      model: "gemini-3-flash-preview",
       contents: { parts: [imagePart, { text: prompt }] },
       config: {
         tools: [{ googleSearch: {} }],
