@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { MarketplaceListing, GroundingSource } from '../types';
+import { MarketplaceListing, GroundingSource } from '../types.ts';
 
 interface ListingDisplayProps {
   listing: MarketplaceListing;

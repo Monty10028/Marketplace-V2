@@ -1,8 +1,8 @@
 
 import React, { useState } from 'react';
-import { analyzeItemWithGemini } from './services/geminiService';
-import { AnalysisState } from './types';
-import ListingDisplay from './components/ListingDisplay';
+import { analyzeItemWithGemini } from './services/geminiService.ts';
+import { AnalysisState } from './types.ts';
+import ListingDisplay from './components/ListingDisplay.tsx';
 
 const App: React.FC = () => {
   const [suburb, setSuburb] = useState<string>('Melbourne CBD');

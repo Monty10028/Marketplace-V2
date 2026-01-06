@@ -1,8 +1,17 @@
 
 import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
-import { MarketplaceListing, GroundingSource } from "../types";
+import { MarketplaceListing, GroundingSource } from "../types.ts";
 
-const API_KEY = process.env.API_KEY || "";
+// Safe environment variable check
+const getApiKey = () => {
+  try {
+    return (typeof process !== 'undefined' && process.env) ? (process.env.API_KEY || "") : "";
+  } catch (e) {
+    return "";
+  }
+};
+
+const API_KEY = getApiKey();
 
 function extractJsonFromText(text: string): any {
   const firstBrace = text.indexOf('{');
@@ -27,7 +36,7 @@ export const analyzeItemWithGemini = async (
   onStatusUpdate: (status: string) => void
 ): Promise<{ listing: MarketplaceListing; sources: GroundingSource [] }> => {
   if (!API_KEY) {
-    throw new Error("API Key is missing. Please ensure process.env.API_KEY is set.");
+    throw new Error("API Key is missing. Please ensure process.env.API_KEY is configured.");
   }
 
   const ai = new GoogleGenAI({ apiKey: API_KEY });
