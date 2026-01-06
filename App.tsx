@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { analyzeItemWithGemini } from './services/geminiService.ts';
 import { AnalysisState } from './types.ts';
 import ListingDisplay from './components/ListingDisplay.tsx';
@@ -8,6 +8,7 @@ const App: React.FC = () => {
   const [suburb, setSuburb] = useState<string>('Melbourne CBD');
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [hasKey, setHasKey] = useState<boolean>(true);
   const [state, setState] = useState<AnalysisState>({
     loading: false,
     error: null,
@@ -15,6 +16,24 @@ const App: React.FC = () => {
     sources: [],
     statusMessage: '',
   });
+
+  useEffect(() => {
+    const checkKey = async () => {
+      if (window.aistudio?.hasSelectedApiKey) {
+        const selected = await window.aistudio.hasSelectedApiKey();
+        setHasKey(selected);
+      }
+    };
+    checkKey();
+  }, []);
+
+  const handleSelectKey = async () => {
+    if (window.aistudio?.openSelectKey) {
+      await window.aistudio.openSelectKey();
+      setHasKey(true); // Assume success per race condition instructions
+      setState(prev => ({ ...prev, error: null }));
+    }
+  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -36,7 +55,7 @@ const App: React.FC = () => {
       ...prev,
       loading: true,
       error: null,
-      statusMessage: 'Analyzing image quality...',
+      statusMessage: 'Accessing local market data...',
     }));
 
     try {
@@ -51,7 +70,7 @@ const App: React.FC = () => {
         setState(prev => ({
           ...prev,
           loading: false,
-          error: listing.unclear_message || "The photo is too unclear to identify details. Please try a sharper, better-lit photo.",
+          error: listing.unclear_message || "The photo is too unclear. Please try a sharper photo.",
           listing: null,
         }));
         return;
@@ -65,12 +84,25 @@ const App: React.FC = () => {
         statusMessage: 'Analysis complete!',
       }));
     } catch (err: any) {
+      let errorMessage = err.message;
+      let needsNewKey = false;
+
+      if (errorMessage.includes('429') || errorMessage.includes('quota') || errorMessage.includes('RESOURCE_EXHAUSTED')) {
+        errorMessage = "You have exceeded the shared API quota. Please select your own paid API key to continue.";
+        needsNewKey = true;
+      } else if (errorMessage.includes('Requested entity was not found')) {
+        errorMessage = "Project configuration error. Please re-select your API key.";
+        needsNewKey = true;
+      }
+
       setState(prev => ({
         ...prev,
         loading: false,
-        error: err.message,
+        error: errorMessage,
         statusMessage: '',
       }));
+      
+      if (needsNewKey) setHasKey(false);
     }
   };
 
@@ -89,16 +121,48 @@ const App: React.FC = () => {
               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Melbourne Reseller Assistant</p>
             </div>
           </div>
-          <div className="hidden sm:flex items-center gap-4 text-sm font-medium text-slate-500">
-            <span className="flex items-center gap-1.5">
-              <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
-              Gemini 3 Powered
-            </span>
+          <div className="flex items-center gap-4">
+            {!hasKey && (
+              <button 
+                onClick={handleSelectKey}
+                className="text-[10px] font-black bg-amber-100 text-amber-700 px-3 py-1.5 rounded-lg border border-amber-200 hover:bg-amber-200 transition-colors uppercase tracking-widest"
+              >
+                Set Paid API Key
+              </button>
+            )}
+            <div className="hidden sm:flex items-center gap-4 text-sm font-medium text-slate-500">
+              <span className="flex items-center gap-1.5">
+                <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
+                Flash Optimized
+              </span>
+            </div>
           </div>
         </div>
       </header>
 
       <main className="max-w-6xl mx-auto px-4 py-8 pb-20">
+        {!hasKey && (
+          <div className="max-w-xl mx-auto mb-12 bg-white p-8 rounded-[32px] border-2 border-amber-100 shadow-xl shadow-amber-50 text-center">
+            <div className="w-16 h-16 bg-amber-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <svg className="w-8 h-8 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+              </svg>
+            </div>
+            <h2 className="text-xl font-black text-slate-800 mb-2 uppercase tracking-tight">Project Quota Reached</h2>
+            <p className="text-slate-600 mb-6 text-sm leading-relaxed">
+              To handle complex market research and high-resolution image analysis, you must provide your own API key from a paid GCP project. 
+              <br/>
+              <a href="https://ai.google.dev/gemini-api/docs/billing" target="_blank" className="text-indigo-600 font-bold hover:underline decoration-2 underline-offset-4">Learn about billing</a>
+            </p>
+            <button 
+              onClick={handleSelectKey}
+              className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black text-sm uppercase tracking-widest shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all active:scale-95"
+            >
+              Select Paid API Key
+            </button>
+          </div>
+        )}
+
         {!state.listing && !state.loading && (
           <div className="text-center mb-12 max-w-2xl mx-auto">
             <h2 className="text-4xl font-extrabold text-slate-900 mb-4 tracking-tight">Expert Local Research.</h2>
@@ -156,9 +220,17 @@ const App: React.FC = () => {
                       <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                     </svg>
                   </div>
-                  <div className="space-y-2">
-                    <p className="font-bold uppercase text-[10px] tracking-widest">Action Required</p>
+                  <div className="space-y-2 flex-1">
+                    <p className="font-bold uppercase text-[10px] tracking-widest">Market Access Issue</p>
                     <p className="font-medium leading-relaxed">{state.error}</p>
+                    {state.error.includes('quota') && (
+                       <button 
+                        onClick={handleSelectKey}
+                        className="mt-2 text-xs font-black text-amber-700 underline decoration-2 underline-offset-4"
+                      >
+                        Set your own API key now
+                      </button>
+                    )}
                   </div>
                 </div>
               )}

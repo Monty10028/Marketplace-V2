@@ -25,17 +25,15 @@ export const analyzeItemWithGemini = async (
   onStatusUpdate: (status: string) => void
 ): Promise<{ listing: MarketplaceListing; sources: GroundingSource [] }> => {
   
-  // Use process.env.API_KEY directly as required by instructions
-  // Hosting providers typically only support uppercase keys
   const API_KEY = process.env.API_KEY;
 
   if (!API_KEY) {
-    throw new Error("API Key is missing. Please ensure the environment variable API_KEY (all uppercase) is configured in your hosting dashboard.");
+    throw new Error("API Key is missing. Please ensure the environment variable API_KEY is configured.");
   }
 
   // Create instance right before making the call to ensure most up-to-date environment state
   const ai = new GoogleGenAI({ apiKey: API_KEY });
-  onStatusUpdate("Checking image quality and researching Melbourne market...");
+  onStatusUpdate("Researching eBay, Gumtree & Cash Converters...");
 
   const prompt = `
     Role: You are an expert reseller assistant for Facebook Marketplace in Melbourne, Australia.
@@ -116,6 +114,11 @@ export const analyzeItemWithGemini = async (
     return { listing, sources };
   } catch (error: any) {
     console.error("Gemini Assistant Error:", error);
-    throw new Error(error.message || "An error occurred during market research.");
+    // Standardize error message for 429 quota issues
+    const errorMessage = error.message || "";
+    if (errorMessage.includes("429") || errorMessage.toLowerCase().includes("quota")) {
+      throw new Error("429: Resource exhausted. Your project quota has been reached. Please use a paid API key.");
+    }
+    throw new Error(errorMessage || "An error occurred during market research.");
   }
 };
