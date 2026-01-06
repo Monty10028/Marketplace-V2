@@ -2,17 +2,6 @@
 import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
 import { MarketplaceListing, GroundingSource } from "../types.ts";
 
-// Safe environment variable check
-const getApiKey = () => {
-  try {
-    return (typeof process !== 'undefined' && process.env) ? (process.env.API_KEY || "") : "";
-  } catch (e) {
-    return "";
-  }
-};
-
-const API_KEY = getApiKey();
-
 function extractJsonFromText(text: string): any {
   const firstBrace = text.indexOf('{');
   const lastBrace = text.lastIndexOf('}');
@@ -35,10 +24,16 @@ export const analyzeItemWithGemini = async (
   suburb: string,
   onStatusUpdate: (status: string) => void
 ): Promise<{ listing: MarketplaceListing; sources: GroundingSource [] }> => {
+  
+  // Use process.env.API_KEY directly as required by instructions
+  // Hosting providers typically only support uppercase keys
+  const API_KEY = process.env.API_KEY;
+
   if (!API_KEY) {
-    throw new Error("API Key is missing. Please ensure process.env.API_KEY is configured.");
+    throw new Error("API Key is missing. Please ensure the environment variable API_KEY (all uppercase) is configured in your hosting dashboard.");
   }
 
+  // Create instance right before making the call to ensure most up-to-date environment state
   const ai = new GoogleGenAI({ apiKey: API_KEY });
   onStatusUpdate("Checking image quality and researching Melbourne market...");
 
@@ -51,10 +46,10 @@ export const analyzeItemWithGemini = async (
     
     If clear, proceed with:
     1. Identify item, brand, model, and condition.
-    2. MANDATORY MARKET RESEARCH: You must search Gumtree AU, Cash Converters AU, and eBay AU (Sold listings).
+    2. MANDATORY MARKET RESEARCH: You MUST search Gumtree AU, Cash Converters AU, and eBay AU (Sold listings). 
     3. For each of those three (Gumtree, Cash Converters, eBay), determine if stock currently exists or has sold recently.
-    4. In the "market_stock_status" field, if items were found, use "In Stock" or "Recent Sales". If no items matching the description exist on that platform, you MUST use the label "No Stock".
-    5. Find the current New RRP at major Australian retailers (Bunnings, JB Hi-Fi, etc.).
+    4. MANDATORY LABELING: If no items matching the description exist on that platform, you MUST use the label "No Stock". Otherwise, use "In Stock" or "Recent Sales".
+    5. Find the current New RRP at major Australian retailers (Bunnings, JB Hi-Fi, Kmart, etc.).
     6. Generate 5-10 SEO keywords.
     7. Create 'Standard' and 'Quick Sell' listings.
     
@@ -76,7 +71,7 @@ export const analyzeItemWithGemini = async (
       "quick_sell_price": "$Q AUD",
       "new_price": "$N AUD (Retail Price)",
       "market_stock_status": {
-        "ebay": "In Stock / No Stock",
+        "ebay": "In Stock / No Stock / Recent Sales",
         "gumtree": "In Stock / No Stock",
         "cash_converters": "In Stock / No Stock"
       },
