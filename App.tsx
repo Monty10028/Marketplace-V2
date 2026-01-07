@@ -117,7 +117,7 @@ const App: React.FC = () => {
               </svg>
             </div>
             <div>
-              <h1 className="font-bold text-slate-800 leading-tight">Marketplace Pro</h1>
+              <h1 className="font-bold text-slate-800 leading-tight">Ian A. Marketplace App</h1>
               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Melbourne Reseller Assistant</p>
             </div>
           </div>
