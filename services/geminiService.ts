@@ -28,10 +28,9 @@ export const analyzeItemWithGemini = async (
   const API_KEY = process.env.API_KEY;
 
   if (!API_KEY) {
-    throw new Error("API Key is missing. Please ensure the environment variable API_KEY is configured.");
+    throw new Error("API Key is missing. Please ensure the environment variable API_KEY is configured in your Hostinger dashboard.");
   }
 
-  // Create instance right before making the call to ensure most up-to-date environment state
   const ai = new GoogleGenAI({ apiKey: API_KEY });
   onStatusUpdate("Researching eBay, Gumtree & Cash Converters...");
 
@@ -114,11 +113,12 @@ export const analyzeItemWithGemini = async (
     return { listing, sources };
   } catch (error: any) {
     console.error("Gemini Assistant Error:", error);
-    // Standardize error message for 429 quota issues
     const errorMessage = error.message || "";
+    
     if (errorMessage.includes("429") || errorMessage.toLowerCase().includes("quota")) {
-      throw new Error("429: Resource exhausted. Your project quota has been reached. Please use a paid API key.");
+      throw new Error("429: Resource Exhausted. This usually means your Google Cloud project has hit its rate limit (Requests Per Minute). If you are on a paid plan, please verify that your Billing Account is 'Active' and not 'Closed' or 'Past Due' in the Google Cloud Console.");
     }
-    throw new Error(errorMessage || "An error occurred during market research.");
+    
+    throw new Error(errorMessage || "An unexpected error occurred while contacting Google AI.");
   }
 };

@@ -19,14 +19,13 @@ const App: React.FC = () => {
 
   useEffect(() => {
     const checkKeyAvailability = async () => {
-      // 1. Check if the hosting provider (Hostinger) has already provided a key
+      // Prioritize the environment variable from Hostinger
       const envKey = process.env.API_KEY;
       if (envKey && envKey.length > 5) {
         setHasKey(true);
         return;
       }
 
-      // 2. Otherwise, check for the special dialog selection bridge
       if (window.aistudio?.hasSelectedApiKey) {
         const selected = await window.aistudio.hasSelectedApiKey();
         setHasKey(selected);
@@ -40,9 +39,6 @@ const App: React.FC = () => {
       await window.aistudio.openSelectKey();
       setHasKey(true); 
       setState(prev => ({ ...prev, error: null }));
-    } else {
-      // If the bridge doesn't exist, we just inform the user
-      alert("Please ensure the API_KEY environment variable is set in your Hostinger dashboard.");
     }
   };
 
@@ -66,7 +62,7 @@ const App: React.FC = () => {
       ...prev,
       loading: true,
       error: null,
-      statusMessage: 'Connecting to Google AI...',
+      statusMessage: 'Scanning local markets...',
     }));
 
     try {
@@ -81,7 +77,7 @@ const App: React.FC = () => {
         setState(prev => ({
           ...prev,
           loading: false,
-          error: listing.unclear_message || "The photo is too unclear. Please try a sharper photo.",
+          error: listing.unclear_message || "Image too unclear for research.",
           listing: null,
         }));
         return;
@@ -92,23 +88,15 @@ const App: React.FC = () => {
         loading: false,
         listing,
         sources,
-        statusMessage: 'Analysis complete!',
+        statusMessage: 'Ready!',
       }));
     } catch (err: any) {
-      const errorMessage = err.message || "An unexpected error occurred.";
-      
       setState(prev => ({
         ...prev,
         loading: false,
-        error: errorMessage,
+        error: err.message || "An unexpected error occurred.",
         statusMessage: '',
       }));
-
-      // Only force key re-selection if it's explicitly a "not found" error
-      // 429 errors are now reported directly to avoid locking the UI
-      if (errorMessage.includes('Requested entity was not found')) {
-        setHasKey(false);
-      }
     }
   };
 
@@ -124,22 +112,14 @@ const App: React.FC = () => {
             </div>
             <div>
               <h1 className="font-bold text-slate-800 leading-tight">Ian A. Marketplace App</h1>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Melbourne Reseller Assistant</p>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">Melbourne Reseller Assistant</p>
             </div>
           </div>
           <div className="flex items-center gap-4">
-            {!hasKey && window.aistudio?.openSelectKey && (
-              <button 
-                onClick={handleSelectKey}
-                className="text-[10px] font-black bg-amber-100 text-amber-700 px-3 py-1.5 rounded-lg border border-amber-200 hover:bg-amber-200 transition-colors uppercase tracking-widest"
-              >
-                Switch API Key
-              </button>
-            )}
             <div className="hidden sm:flex items-center gap-4 text-sm font-medium text-slate-500">
               <span className="flex items-center gap-1.5">
                 <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
-                Flash v3 Active
+                API Connected
               </span>
             </div>
           </div>
@@ -147,32 +127,11 @@ const App: React.FC = () => {
       </header>
 
       <main className="max-w-6xl mx-auto px-4 py-8 pb-20">
-        {/* Only show the full-screen modal if we literally have NO key in environment AND the select bridge is available */}
-        {!hasKey && !process.env.API_KEY && window.aistudio?.openSelectKey && (
-          <div className="max-w-xl mx-auto mb-12 bg-white p-8 rounded-[32px] border-2 border-amber-100 shadow-xl shadow-amber-50 text-center">
-            <div className="w-16 h-16 bg-amber-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
-              <svg className="w-8 h-8 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
-              </svg>
-            </div>
-            <h2 className="text-xl font-black text-slate-800 mb-2 uppercase tracking-tight">API Configuration Required</h2>
-            <p className="text-slate-600 mb-6 text-sm leading-relaxed">
-              To handle market research, you must provide a Google Gemini API Key. If you've already added one to Hostinger, this message will disappear once the connection is verified.
-            </p>
-            <button 
-              onClick={handleSelectKey}
-              className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black text-sm uppercase tracking-widest shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all active:scale-95"
-            >
-              Configure API Access
-            </button>
-          </div>
-        )}
-
         {!state.listing && !state.loading && (
           <div className="text-center mb-12 max-w-2xl mx-auto">
-            <h2 className="text-4xl font-extrabold text-slate-900 mb-4 tracking-tight">Expert Local Research.</h2>
+            <h2 className="text-4xl font-extrabold text-slate-900 mb-4 tracking-tight">Market Analysis.</h2>
             <p className="text-lg text-slate-600">
-              Leveraging Gemini Flash to scan eBay, Gumtree, and Cash Converters for the best Melbourne pricing.
+              Identify your item and find its current resale value across eBay, Gumtree, and Cash Converters.
             </p>
           </div>
         )}
@@ -190,7 +149,7 @@ const App: React.FC = () => {
                   {imagePreview ? (
                     <div className="relative w-full h-full">
                       <img src={imagePreview} className="w-full h-full object-contain p-2" alt="Preview" />
-                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white font-bold">Change Photo</div>
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white font-bold uppercase text-xs tracking-widest">Change Photo</div>
                     </div>
                   ) : (
                     <div className="text-center p-6">
@@ -199,47 +158,68 @@ const App: React.FC = () => {
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                         </svg>
                       </div>
-                      <p className="text-slate-600 font-semibold">Click or drag photo here</p>
-                      <p className="text-slate-400 text-sm mt-1">Clear photos = Accurate Pricing</p>
+                      <p className="text-slate-600 font-bold">Upload product image</p>
+                      <p className="text-slate-400 text-sm mt-1">Tap to select or drag & drop</p>
                     </div>
                   )}
                 </div>
               </div>
 
               <div className="space-y-4">
-                <label className="block text-sm font-bold text-slate-700 uppercase tracking-wide">Your Location</label>
+                <label className="block text-sm font-bold text-slate-700 uppercase tracking-wide">Melbourne Suburb</label>
                 <div className="relative">
                   <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
                     <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                     </svg>
                   </span>
-                  <input type="text" value={suburb} onChange={(e) => setSuburb(e.target.value)} placeholder="e.g. Richmond, 3121" className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all font-medium text-slate-700" />
+                  <input type="text" value={suburb} onChange={(e) => setSuburb(e.target.value)} placeholder="e.g. Richmond" className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all font-bold text-slate-700 placeholder:font-normal" />
                 </div>
               </div>
 
               {state.error && (
-                <div className="p-5 bg-rose-50 border border-rose-200 text-rose-800 rounded-2xl text-sm flex gap-4 items-start shadow-sm">
-                  <div className="mt-1">
-                    <svg className="w-5 h-5 text-rose-500" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                    </svg>
+                <div className="p-6 bg-rose-50 border-2 border-rose-100 text-rose-900 rounded-3xl space-y-4">
+                  <div className="flex gap-3 items-start">
+                    <div className="mt-1">
+                      <svg className="w-6 h-6 text-rose-500" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="font-black uppercase text-xs tracking-widest text-rose-600">Quota Limit Exceeded</p>
+                      <p className="text-sm font-bold leading-relaxed">{state.error}</p>
+                    </div>
                   </div>
-                  <div className="space-y-2 flex-1">
-                    <p className="font-bold uppercase text-[10px] tracking-widest">System Error</p>
-                    <p className="font-medium leading-relaxed">{state.error}</p>
-                    {state.error.includes('429') && (
-                      <p className="text-[11px] mt-2 opacity-80 italic">Tip: If you're on a paid plan, ensure billing is active in Google Cloud Console.</p>
-                    )}
-                  </div>
+                  
+                  {state.error.includes('429') && (
+                    <div className="pt-4 border-t border-rose-200 flex flex-col gap-3">
+                      <p className="text-xs font-medium text-rose-700">Recommended Steps:</p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <a 
+                          href="https://console.cloud.google.com/billing" 
+                          target="_blank" 
+                          className="flex items-center justify-center p-3 bg-white border border-rose-200 rounded-xl text-[10px] font-black uppercase tracking-widest text-rose-600 hover:bg-rose-100 transition-colors shadow-sm"
+                        >
+                          Check Billing Status
+                        </a>
+                        <a 
+                          href="https://console.cloud.google.com/apis/api/generativelanguage.googleapis.com/quotas" 
+                          target="_blank" 
+                          className="flex items-center justify-center p-3 bg-white border border-rose-200 rounded-xl text-[10px] font-black uppercase tracking-widest text-rose-600 hover:bg-rose-100 transition-colors shadow-sm"
+                        >
+                          View Quota Dashboard
+                        </a>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
               <button 
                 onClick={handleAnalyze}
                 disabled={!imageFile || state.loading}
-                className={`w-full py-5 rounded-2xl font-bold text-lg transition-all shadow-xl
-                  ${!imageFile || state.loading ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-indigo-600 text-white hover:bg-indigo-700 active:scale-[0.98] shadow-indigo-200'}`}
+                className={`w-full py-5 rounded-2xl font-black text-lg transition-all shadow-xl uppercase tracking-widest
+                  ${!imageFile || state.loading ? 'bg-slate-100 text-slate-400 cursor-not-allowed shadow-none' : 'bg-indigo-600 text-white hover:bg-indigo-700 active:scale-[0.98] shadow-indigo-200'}`}
               >
                 {state.loading ? (
                   <div className="flex items-center justify-center gap-3">
@@ -249,7 +229,7 @@ const App: React.FC = () => {
                     </svg>
                     {state.statusMessage}
                   </div>
-                ) : 'Run Market Research'}
+                ) : 'Analyze Market Data'}
               </button>
             </div>
           </div>
@@ -258,15 +238,15 @@ const App: React.FC = () => {
         {state.listing && (
           <div className="space-y-6">
             <div className="flex items-center justify-between mb-4">
-               <button onClick={() => setState(prev => ({ ...prev, listing: null }))} className="flex items-center gap-2 text-slate-500 hover:text-slate-800 font-bold text-sm">
+               <button onClick={() => setState(prev => ({ ...prev, listing: null }))} className="flex items-center gap-2 text-slate-500 hover:text-slate-800 font-black text-xs uppercase tracking-widest">
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
                 </svg>
-                New Analysis
+                New Research
               </button>
               <div className="text-right">
-                 <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">Research Verified</p>
-                 <p className="text-sm font-medium text-emerald-600">Tailored for {suburb}</p>
+                 <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest">Research Verified</p>
+                 <p className="text-xs font-bold text-emerald-600">{suburb}, VIC</p>
               </div>
             </div>
             <ListingDisplay listing={state.listing} sources={state.sources} imagePreview={imagePreview} />
