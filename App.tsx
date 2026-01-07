@@ -18,20 +18,31 @@ const App: React.FC = () => {
   });
 
   useEffect(() => {
-    const checkKey = async () => {
+    const checkKeyAvailability = async () => {
+      // 1. Check if the hosting provider (Hostinger) has already provided a key
+      const envKey = process.env.API_KEY;
+      if (envKey && envKey.length > 5) {
+        setHasKey(true);
+        return;
+      }
+
+      // 2. Otherwise, check for the special dialog selection bridge
       if (window.aistudio?.hasSelectedApiKey) {
         const selected = await window.aistudio.hasSelectedApiKey();
         setHasKey(selected);
       }
     };
-    checkKey();
+    checkKeyAvailability();
   }, []);
 
   const handleSelectKey = async () => {
     if (window.aistudio?.openSelectKey) {
       await window.aistudio.openSelectKey();
-      setHasKey(true); // Assume success per race condition instructions
+      setHasKey(true); 
       setState(prev => ({ ...prev, error: null }));
+    } else {
+      // If the bridge doesn't exist, we just inform the user
+      alert("Please ensure the API_KEY environment variable is set in your Hostinger dashboard.");
     }
   };
 
@@ -55,7 +66,7 @@ const App: React.FC = () => {
       ...prev,
       loading: true,
       error: null,
-      statusMessage: 'Accessing local market data...',
+      statusMessage: 'Connecting to Google AI...',
     }));
 
     try {
@@ -84,25 +95,20 @@ const App: React.FC = () => {
         statusMessage: 'Analysis complete!',
       }));
     } catch (err: any) {
-      let errorMessage = err.message;
-      let needsNewKey = false;
-
-      if (errorMessage.includes('429') || errorMessage.includes('quota') || errorMessage.includes('RESOURCE_EXHAUSTED')) {
-        errorMessage = "You have exceeded the shared API quota. Please select your own paid API key to continue.";
-        needsNewKey = true;
-      } else if (errorMessage.includes('Requested entity was not found')) {
-        errorMessage = "Project configuration error. Please re-select your API key.";
-        needsNewKey = true;
-      }
-
+      const errorMessage = err.message || "An unexpected error occurred.";
+      
       setState(prev => ({
         ...prev,
         loading: false,
         error: errorMessage,
         statusMessage: '',
       }));
-      
-      if (needsNewKey) setHasKey(false);
+
+      // Only force key re-selection if it's explicitly a "not found" error
+      // 429 errors are now reported directly to avoid locking the UI
+      if (errorMessage.includes('Requested entity was not found')) {
+        setHasKey(false);
+      }
     }
   };
 
@@ -122,18 +128,18 @@ const App: React.FC = () => {
             </div>
           </div>
           <div className="flex items-center gap-4">
-            {!hasKey && (
+            {!hasKey && window.aistudio?.openSelectKey && (
               <button 
                 onClick={handleSelectKey}
                 className="text-[10px] font-black bg-amber-100 text-amber-700 px-3 py-1.5 rounded-lg border border-amber-200 hover:bg-amber-200 transition-colors uppercase tracking-widest"
               >
-                Set Paid API Key
+                Switch API Key
               </button>
             )}
             <div className="hidden sm:flex items-center gap-4 text-sm font-medium text-slate-500">
               <span className="flex items-center gap-1.5">
                 <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
-                Flash Optimized
+                Flash v3 Active
               </span>
             </div>
           </div>
@@ -141,24 +147,23 @@ const App: React.FC = () => {
       </header>
 
       <main className="max-w-6xl mx-auto px-4 py-8 pb-20">
-        {!hasKey && (
+        {/* Only show the full-screen modal if we literally have NO key in environment AND the select bridge is available */}
+        {!hasKey && !process.env.API_KEY && window.aistudio?.openSelectKey && (
           <div className="max-w-xl mx-auto mb-12 bg-white p-8 rounded-[32px] border-2 border-amber-100 shadow-xl shadow-amber-50 text-center">
             <div className="w-16 h-16 bg-amber-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
               <svg className="w-8 h-8 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
               </svg>
             </div>
-            <h2 className="text-xl font-black text-slate-800 mb-2 uppercase tracking-tight">Project Quota Reached</h2>
+            <h2 className="text-xl font-black text-slate-800 mb-2 uppercase tracking-tight">API Configuration Required</h2>
             <p className="text-slate-600 mb-6 text-sm leading-relaxed">
-              To handle complex market research and high-resolution image analysis, you must provide your own API key from a paid GCP project. 
-              <br/>
-              <a href="https://ai.google.dev/gemini-api/docs/billing" target="_blank" className="text-indigo-600 font-bold hover:underline decoration-2 underline-offset-4">Learn about billing</a>
+              To handle market research, you must provide a Google Gemini API Key. If you've already added one to Hostinger, this message will disappear once the connection is verified.
             </p>
             <button 
               onClick={handleSelectKey}
               className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black text-sm uppercase tracking-widest shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all active:scale-95"
             >
-              Select Paid API Key
+              Configure API Access
             </button>
           </div>
         )}
@@ -167,7 +172,7 @@ const App: React.FC = () => {
           <div className="text-center mb-12 max-w-2xl mx-auto">
             <h2 className="text-4xl font-extrabold text-slate-900 mb-4 tracking-tight">Expert Local Research.</h2>
             <p className="text-lg text-slate-600">
-              Researching eBay, Gumtree, and Cash Converters to find your item's true Melbourne market value.
+              Leveraging Gemini Flash to scan eBay, Gumtree, and Cash Converters for the best Melbourne pricing.
             </p>
           </div>
         )}
@@ -195,7 +200,7 @@ const App: React.FC = () => {
                         </svg>
                       </div>
                       <p className="text-slate-600 font-semibold">Click or drag photo here</p>
-                      <p className="text-slate-400 text-sm mt-1">High resolution photos ensure accurate pricing</p>
+                      <p className="text-slate-400 text-sm mt-1">Clear photos = Accurate Pricing</p>
                     </div>
                   )}
                 </div>
@@ -214,22 +219,17 @@ const App: React.FC = () => {
               </div>
 
               {state.error && (
-                <div className="p-5 bg-amber-50 border border-amber-200 text-amber-800 rounded-2xl text-sm flex gap-4 items-start shadow-sm">
+                <div className="p-5 bg-rose-50 border border-rose-200 text-rose-800 rounded-2xl text-sm flex gap-4 items-start shadow-sm">
                   <div className="mt-1">
-                    <svg className="w-5 h-5 text-amber-500" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                    <svg className="w-5 h-5 text-rose-500" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
                     </svg>
                   </div>
                   <div className="space-y-2 flex-1">
-                    <p className="font-bold uppercase text-[10px] tracking-widest">Market Access Issue</p>
+                    <p className="font-bold uppercase text-[10px] tracking-widest">System Error</p>
                     <p className="font-medium leading-relaxed">{state.error}</p>
-                    {state.error.includes('quota') && (
-                       <button 
-                        onClick={handleSelectKey}
-                        className="mt-2 text-xs font-black text-amber-700 underline decoration-2 underline-offset-4"
-                      >
-                        Set your own API key now
-                      </button>
+                    {state.error.includes('429') && (
+                      <p className="text-[11px] mt-2 opacity-80 italic">Tip: If you're on a paid plan, ensure billing is active in Google Cloud Console.</p>
                     )}
                   </div>
                 </div>
@@ -249,7 +249,7 @@ const App: React.FC = () => {
                     </svg>
                     {state.statusMessage}
                   </div>
-                ) : 'Analyze Market Data'}
+                ) : 'Run Market Research'}
               </button>
             </div>
           </div>
@@ -262,7 +262,7 @@ const App: React.FC = () => {
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
                 </svg>
-                Back to Research
+                New Analysis
               </button>
               <div className="text-right">
                  <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">Research Verified</p>
